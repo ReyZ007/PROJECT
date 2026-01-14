@@ -1,4 +1,9 @@
-const User = require("../models/User");
+if (typeof require !== 'undefined' && typeof module !== 'undefined') {
+    // Hanya import jika kita benar-benar di Node.js environment
+    if (typeof User === 'undefined') {
+        User = require('../models/User');
+    }
+}
 
 /**
  * User Repository - Mengelola penyimpanan dan pengambilan data User
