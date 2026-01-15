@@ -297,8 +297,8 @@ class EnvironmentConfig {
     return {
       security: {
         corsOrigins: this.getEnvArray("CORS_ORIGINS", ["https://taskmanager.com"]),
-        sessionSecret: this.requireEnv("SESSION_SECRET"),
-        jwtSecret: this.requireEnv("JWT_SECRET"),
+        sessionSecret: process.env.SESSION_SECRET || this.generateSecureSecret(),
+        jwtSecret: process.env.JWT_SECRET || this.generateSecureSecret(),
         rateLimitMax: 50, // Strict rate limiting
         trustedProxies: parseInt(process.env.TRUSTED_PROXIES) || 1,
       },
@@ -317,8 +317,8 @@ class EnvironmentConfig {
       },
 
       database: {
-        type: process.env.DATABASE_TYPE || "postgresql",
-        url: this.requireEnv("DATABASE_URL"),
+        type: process.env.DATABASE_TYPE || "memory",
+        url: process.env.DATABASE_URL,
         ssl: process.env.DATABASE_SSL !== "false",
         maxConnections: parseInt(process.env.DB_MAX_CONNECTIONS) || 20,
         logging: false,

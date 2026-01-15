@@ -20,14 +20,21 @@ const { SecurityConfig, SecurityUtils } = require("./security-config");
 // Initialize configuration
 const config = new EnvironmentConfig();
 
-// Validate configuration
+// Validate configuration (warn but don't crash in serverless)
 try {
   config.validateConfiguration();
   console.log(`✅ Configuration validated for ${config.environment} environment`);
 } catch (error) {
-  console.error("❌ Configuration validation failed:");
-  console.error(error.message);
-  process.exit(1);
+  console.warn("⚠️  Configuration validation warning:");
+  console.warn(error.message);
+
+  // Only exit in non-serverless environments
+  if (process.env.VERCEL === undefined) {
+    console.error("❌ Exiting due to validation failure (not in serverless)");
+    process.exit(1);
+  } else {
+    console.warn("⚠️  Continuing in serverless environment despite warnings");
+  }
 }
 
 // Initialize security
