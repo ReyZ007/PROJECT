@@ -1,0 +1,33 @@
+{
+  "name": "task-management-system",
+  "description": "Production-ready task management system",
+  "version": "1.0.0",
+  "repository": "https://github.com/yourusername/task-management-system",
+  "scripts": {
+    "start": "NODE_ENV=production node server.js",
+    "dev": "NODE_ENV=development node server.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint src/",
+    "format": "prettier --write src/",
+    "validate": "node validate-setup.js",
+    "build": "echo 'Build complete'"
+  },
+  "author": "Your Name",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "keywords": [
+    "task-management",
+    "javascript",
+    "production",
+    "deployment",
+    "express"
+  ],
+  "bugs": {
+    "url": "https://github.com/yourusername/task-management-system/issues"
+  },
+  "homepage": "https://github.com/yourusername/task-management-system#readme"
+}
