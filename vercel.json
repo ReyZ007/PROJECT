@@ -1,13 +1,26 @@
 {
   "version": 2,
   "buildCommand": "npm install",
+  "public": "public",
   "env": {
     "NODE_ENV": "production"
   },
-  "rewrites": [
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 30
+    }
+  },
+  "routes": [
     {
-      "source": "/(.*)",
-      "destination": "/api"
+      "src": "/public/(.*)",
+      "dest": "/public/$1",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000"
+      }
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/api"
     }
   ]
 }
