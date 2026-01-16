@@ -14,52 +14,73 @@ const path = require("path");
 const compression = require("compression");
 const cors = require("cors");
 const morgan = require("morgan");
-const EnvironmentConfig = require("./environment-config");
-const { SecurityConfig, SecurityUtils } = require("./security-config");
 
-// Initialize configuration
-const config = new EnvironmentConfig();
+let config, security, app;
 
-// Validate configuration (warn but don't crash in serverless)
 try {
-  config.validateConfiguration();
-  console.log(`✅ Configuration validated for ${config.environment} environment`);
-} catch (error) {
-  console.warn("⚠️  Configuration validation warning:");
-  console.warn(error.message);
+  const EnvironmentConfig = require("./environment-config");
+  const { SecurityConfig, SecurityUtils } = require("./security-config");
 
-  // Only exit in non-serverless environments
-  if (process.env.VERCEL === undefined) {
-    console.error("❌ Exiting due to validation failure (not in serverless)");
-    process.exit(1);
-  } else {
-    console.warn("⚠️  Continuing in serverless environment despite warnings");
+  // Initialize configuration
+  config = new EnvironmentConfig();
+
+  // Validate configuration (warn but don't crash in serverless)
+  try {
+    config.validateConfiguration();
+    console.log(`✅ Configuration validated for ${config.environment} environment`);
+  } catch (error) {
+    console.warn("⚠️  Configuration validation warning:");
+    console.warn(error.message);
+
+    // Only exit in non-serverless environments
+    if (process.env.VERCEL === undefined) {
+      console.error("❌ Exiting due to validation failure (not in serverless)");
+      process.exit(1);
+    } else {
+      console.warn("⚠️  Continuing in serverless environment despite warnings");
+    }
   }
+
+  // Initialize security
+  security = new SecurityConfig({
+    corsOrigins: config.get("security.corsOrigins"),
+    sessionSecret: config.get("security.sessionSecret"),
+    rateLimitWindow: config.get("security.rateLimitWindow"),
+    rateLimitMax: config.get("security.rateLimitMax"),
+  });
+} catch (error) {
+  console.error("❌ Failed to initialize config/security:", error.message);
+  if (process.env.VERCEL === undefined) {
+    process.exit(1);
+  }
+  // In serverless, create minimal config
+  config = {
+    get: () => undefined,
+    isDevelopment: () => false,
+    environment: "vercel-error",
+    getSummary: () => ({}),
+  };
+  security = { getMiddleware: () => [] };
 }
 
-// Initialize security
-const security = new SecurityConfig({
-  corsOrigins: config.get("security.corsOrigins"),
-  sessionSecret: config.get("security.sessionSecret"),
-  rateLimitWindow: config.get("security.rateLimitWindow"),
-  rateLimitMax: config.get("security.rateLimitMax"),
-});
-
-const app = express();
-const PORT = config.get("server.port");
-const HOST = config.get("server.host");
+app = express();
+const PORT = config?.get?.("server.port") || 3000;
+const HOST = config?.get?.("server.host") || "0.0.0.0";
 
 // === MIDDLEWARE SETUP ===
 
-// Trust proxy (important for Vercel, Heroku, etc.)
-app.set("trust proxy", config.get("security.trustedProxies"));
+try {
+  // Trust proxy (important for Vercel, Heroku, etc.)
+  const trustedProxies = config?.get?.("security.trustedProxies") || 1;
+  app.set("trust proxy", trustedProxies);
 
-// Compression middleware
-if (config.get("performance.compressionEnabled")) {
-  app.use(
-    compression({
-      level: config.get("performance.compressionLevel"),
-      filter: (req, res) => {
+  // Compression middleware
+  const compressionEnabled = config?.get?.("performance.compressionEnabled") !== false;
+  if (compressionEnabled) {
+    app.use(
+      compression({
+        level: config?.get?.("performance.compressionLevel") || 6,
+        filter: (req, res) => {
         if (req.headers["x-no-compression"]) {
           return false;
         }
