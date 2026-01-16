@@ -9,11 +9,17 @@ require("dotenv").config({
 
 const express = require("express");
 const path = require("path");
+const fs = require("fs");
 const compression = require("compression");
 const cors = require("cors");
 const morgan = require("morgan");
 
 const app = express();
+
+// Determine correct path to public directory
+const publicPath = path.join(__dirname, "..", "public");
+console.log("📁 Public path:", publicPath);
+console.log("📁 Public path exists:", fs.existsSync(publicPath));
 
 // === MIDDLEWARE ===
 
@@ -46,7 +52,7 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Serve static files from public directory
 app.use(
-  express.static(path.join(__dirname, "../public"), {
+  express.static(publicPath, {
     maxAge: "1y",
     etag: false,
   })
@@ -60,6 +66,8 @@ app.get("/health", (req, res) => {
     status: "healthy",
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || "production",
+    __dirname: __dirname,
+    publicPath: publicPath,
   });
 });
 
@@ -81,6 +89,7 @@ app.get("/api", (req, res) => {
     endpoints: {
       health: "/health",
       metrics: "/metrics",
+      tasks: "/api/tasks",
     },
   });
 });
@@ -112,7 +121,18 @@ app.get("*", (req, res) => {
     });
   }
 
-  res.sendFile(path.join(__dirname, "../public/index.html"));
+  const indexPath = path.join(publicPath, "index.html");
+  console.log("📄 Serving index.html from:", indexPath);
+
+  if (!fs.existsSync(indexPath)) {
+    console.error("❌ index.html not found at:", indexPath);
+    return res.status(404).json({
+      error: "index.html not found",
+      path: indexPath,
+    });
+  }
+
+  res.sendFile(indexPath);
 });
 
 // === ERROR HANDLER ===
