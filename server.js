@@ -81,152 +81,156 @@ try {
       compression({
         level: config?.get?.("performance.compressionLevel") || 6,
         filter: (req, res) => {
-        if (req.headers["x-no-compression"]) {
-          return false;
-        }
-        return compression.filter(req, res);
-      },
-      threshold: 1024, // Only compress > 1KB
+          if (req.headers["x-no-compression"]) {
+            return false;
+          }
+          return compression.filter(req, res);
+        },
+        threshold: 1024, // Only compress > 1KB
+      })
+    );
+  }
+
+  // Security headers
+  app.use(security.createSecurityHeadersMiddleware());
+
+  // CORS middleware
+  app.use(cors(security.createCorsConfig()));
+
+  // Request logging
+  if (config.get("logging.enableConsole")) {
+    app.use(morgan(config.get("logging.format")));
+  }
+
+  // Body parsing middleware
+  app.use(express.json({ limit: "10mb" }));
+  app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+  // Input validation middleware
+  app.use(security.createInputValidator());
+
+  // === STATIC FILE SERVING ===
+
+  // Serve static files from public directory with caching
+  app.use(
+    express.static(path.join(__dirname, "public"), {
+      maxAge: config.get("performance.staticCacheMaxAge") * 1000,
+      etag: config.get("performance.etag"),
+      lastModified: config.get("performance.lastModified"),
     })
   );
+
+  // Serve source files in development
+  if (config.isDevelopment()) {
+    app.use("/src", express.static(path.join(__dirname, "src")));
+  }
+
+  // === API ROUTES ===
+
+  // Health check endpoint
+  app.get("/health", (req, res) => {
+    const healthCheck = {
+      status: "healthy",
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      environment: config.environment,
+      version: config.get("app.version"),
+      memory: process.memoryUsage(),
+      cpu: process.cpuUsage(),
+    };
+    res.status(200).json(healthCheck);
+  });
+
+  // Metrics endpoint
+  app.get("/metrics", (req, res) => {
+    const metrics = {
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      cpu: process.cpuUsage(),
+      environment: config.environment,
+      version: config.get("app.version"),
+    };
+    res.status(200).json(metrics);
+  });
+
+  // API info endpoint
+  app.get("/api", (req, res) => {
+    res.json({
+      name: config.get("app.name"),
+      version: config.get("app.version"),
+      environment: config.environment,
+      endpoints: {
+        health: "/health",
+        metrics: "/metrics",
+        api: "/api",
+      },
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  // Tasks API endpoints (placeholder)
+  app.get("/api/tasks", (req, res) => {
+    res.json({
+      message: "Tasks API endpoint",
+      tasks: [],
+    });
+  });
+
+  app.post("/api/tasks", (req, res) => {
+    res.status(201).json({
+      message: "Task created",
+      id: 1,
+    });
+  });
+
+  // === SPA FALLBACK ===
+
+  // Serve index.html for all non-API routes (SPA support)
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, "public", "index.html"), {
+      cacheControl: false,
+    });
+  });
+
+  // === ERROR HANDLING ===
+
+  // 404 handler
+  app.use((req, res) => {
+    res.status(404).json({
+      error: "Not Found",
+      message: "The requested resource was not found",
+      path: req.path,
+      method: req.method,
+    });
+  });
+
+  // Global error handler
+  app.use((err, req, res, next) => {
+    console.error("❌ Error:", {
+      timestamp: new Date().toISOString(),
+      error: err.message,
+      stack: err.stack,
+      url: req.url,
+      method: req.method,
+      ip: req.ip,
+    });
+
+    // Don't leak error details in production
+    const isDev = config.isDevelopment();
+
+    res.status(err.status || 500).json({
+      error: err.name || "Internal Server Error",
+      message: isDev ? err.message : "Something went wrong",
+      ...(isDev && { stack: err.stack }),
+    });
+  });
+} catch (error) {
+  console.error("❌ Failed to setup middleware:", error.message);
+  if (process.env.VERCEL === undefined) {
+    process.exit(1);
+  }
 }
-
-// Security headers
-app.use(security.createSecurityHeadersMiddleware());
-
-// CORS middleware
-app.use(cors(security.createCorsConfig()));
-
-// Request logging
-if (config.get("logging.enableConsole")) {
-  app.use(morgan(config.get("logging.format")));
-}
-
-// Body parsing middleware
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
-
-// Input validation middleware
-app.use(security.createInputValidator());
-
-// === STATIC FILE SERVING ===
-
-// Serve static files from public directory with caching
-app.use(
-  express.static(path.join(__dirname, "public"), {
-    maxAge: config.get("performance.staticCacheMaxAge") * 1000,
-    etag: config.get("performance.etag"),
-    lastModified: config.get("performance.lastModified"),
-  })
-);
-
-// Serve source files in development
-if (config.isDevelopment()) {
-  app.use("/src", express.static(path.join(__dirname, "src")));
-}
-
-// === API ROUTES ===
-
-// Health check endpoint
-app.get("/health", (req, res) => {
-  const healthCheck = {
-    status: "healthy",
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: config.environment,
-    version: config.get("app.version"),
-    memory: process.memoryUsage(),
-    cpu: process.cpuUsage(),
-  };
-  res.status(200).json(healthCheck);
-});
-
-// Metrics endpoint
-app.get("/metrics", (req, res) => {
-  const metrics = {
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    memory: process.memoryUsage(),
-    cpu: process.cpuUsage(),
-    environment: config.environment,
-    version: config.get("app.version"),
-  };
-  res.status(200).json(metrics);
-});
-
-// API info endpoint
-app.get("/api", (req, res) => {
-  res.json({
-    name: config.get("app.name"),
-    version: config.get("app.version"),
-    environment: config.environment,
-    endpoints: {
-      health: "/health",
-      metrics: "/metrics",
-      api: "/api",
-    },
-    timestamp: new Date().toISOString(),
-  });
-});
-
-// Tasks API endpoints (placeholder)
-app.get("/api/tasks", (req, res) => {
-  res.json({
-    message: "Tasks API endpoint",
-    tasks: [],
-  });
-});
-
-app.post("/api/tasks", (req, res) => {
-  res.status(201).json({
-    message: "Task created",
-    id: 1,
-  });
-});
-
-// === SPA FALLBACK ===
-
-// Serve index.html for all non-API routes (SPA support)
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"), {
-    cacheControl: false,
-  });
-});
-
-// === ERROR HANDLING ===
-
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({
-    error: "Not Found",
-    message: "The requested resource was not found",
-    path: req.path,
-    method: req.method,
-  });
-});
-
-// Global error handler
-app.use((err, req, res, next) => {
-  console.error("❌ Error:", {
-    timestamp: new Date().toISOString(),
-    error: err.message,
-    stack: err.stack,
-    url: req.url,
-    method: req.method,
-    ip: req.ip,
-  });
-
-  // Don't leak error details in production
-  const isDev = config.isDevelopment();
-
-  res.status(err.status || 500).json({
-    error: err.name || "Internal Server Error",
-    message: isDev ? err.message : "Something went wrong",
-    ...(isDev && { stack: err.stack }),
-  });
-});
-
-// === SERVER STARTUP ===
 
 // Only start listening if not in Vercel serverless environment
 let server;

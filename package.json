@@ -6,11 +6,15 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
+    "prod": "NODE_ENV=production node production-server.js",
     "test": "jest",
     "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
     "lint": "eslint src/",
     "format": "prettier --write src/",
-    "validate": "node validate-setup.js"
+    "validate": "node validate-setup.js",
+    "health": "curl http://localhost:3000/health",
+    "metrics": "curl http://localhost:3000/metrics"
   },
   "keywords": [
     "task-management",

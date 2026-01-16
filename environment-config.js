@@ -485,6 +485,34 @@ class EnvironmentConfig {
   }
 
   /**
+   * Check if environment is development
+   */
+  isDevelopment() {
+    return this.environment === "development";
+  }
+
+  /**
+   * Check if environment is production
+   */
+  isProduction() {
+    return this.environment === "production";
+  }
+
+  /**
+   * Check if environment is staging
+   */
+  isStaging() {
+    return this.environment === "staging";
+  }
+
+  /**
+   * Check if environment is test
+   */
+  isTest() {
+    return this.environment === "test";
+  }
+
+  /**
    * Get all configuration
    */
   getAll() {
